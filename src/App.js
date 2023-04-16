@@ -4,7 +4,20 @@ import { BrowserRouter as Router, Switch, Route } from 'react-router-dom'
 import LandingPage from './components/pages/LandingPage'
 import LoginPage from './components/pages/LoginPage'
 import HomePage from './components/pages/HomePage'
+import { ref, child, get } from "firebase/database";
+import { database } from "./firebase";
 
+const dbRef = ref(database);
+
+get(child(dbRef, `user`)).then((snapshot) => {
+    if (snapshot.exists()) {
+        console.log(snapshot.val());
+    } else {
+        console.log("No data available");
+    }
+}).catch((error) => {
+    console.error(error);
+});
 export default function App() {
     return (
         <Router>

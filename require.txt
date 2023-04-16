@@ -1,0 +1,70 @@
+* Firebase's docs for reading and writing data:
+https://firebase.google.com/docs/database/web/read-and-write
+* Example:
+```import { ref, child, get } from "firebase/database";
+import { database } from "./firebase";
+//create firebase database instance
+const dbRef = ref(database);
+//get list contains all users
+get(child(dbRef, `user`)).then((snapshot) => {
+    if (snapshot.exists()) {
+        console.log(snapshot.val());
+    } else {
+        console.log("No data available");
+    }
+}).catch((error) => {
+    console.error(error);
+});
+//get information of an user by id (id~username)
+get(child(dbRef, `user/{id}`)).then((snapshot) => {
+    if (snapshot.exists()) {
+        console.log(snapshot.val());
+    } else {
+        console.log("No data available");
+    }
+}).catch((error) => {
+    console.error(error);
+});
+```
+Note:
+1. Login
+- Checks if user exists 
+- Check if the password is correct by using the verifyPassword function.
+    ```
+    // Function to verify a password
+const verifyPassword = async (password, hash) => {
+    try {
+        // Compare the provided password with the stored hash
+        const isMatch = await bcrypt.compare(password, hash);
+        console.log(isMatch);
+        return isMatch;
+    } catch (error) {
+        console.error('Error verifying password:', error);
+        throw error;
+    }
+};
+```
+- If it returns true, then get information and store it to local storage.
+2. Transfer screen
+- Show account address in the format: 0x04e...7D72
+- Show balance of the account in uint: ether
+- Target: 
+    + Must check if address is valid (```ethers.utils.isAddress(address)```)
+- Item list:
+    + Address must be valid and be an ERC721 or ERC1155 contract
+     ERC721
+        # Disable quantity
+        # Check if the account own the id. If not, show error
+     ERC1155
+        # If sufficient quantity, then show error
+- Change 'submit' to 'continue'
+- User press continue => Open popup shows => if user choose submit then call `signEndSend()` function.
+  =================================
+ |                                 | 
+ |   GasLimit: ------- ether       | 
+ |                                 | 
+ |                                 | 
+ |   submit            cancel      | 
+ |                                 | 
+  =================================
+- After send transaction, if succeed then show message otherwise shows error
