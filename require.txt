@@ -57,7 +57,7 @@ const verifyPassword = async (password, hash) => {
         # Check if the account own the id. If not, show error
      ERC1155
         # If sufficient quantity, then show error
-- Change 'submit' to 'continue'
+- Change 'submit' to 'continue' 
 - User press continue => Open popup shows => if user choose submit then call `signEndSend()` function.
   =================================
  |                                 | 
@@ -68,3 +68,20 @@ const verifyPassword = async (password, hash) => {
  |                                 | 
   =================================
 - After send transaction, if succeed then show message otherwise shows error
+
+=================================================================================
+network
+bsc testnet: 
+tbsc: {
+      url: "https://data-seed-prebsc-1-s1.binance.org:8545",
+      chainId: 97,
+      accounts: process.env.PRIVATE_KEY_TESTNET !== undefined ? [process.env.PRIVATE_KEY_TESTNET] : [],
+    },
+
+test account
+id: admin
+password: 123@123
+
+test contract
+ERC721: 0x10425fF5c5d0AEbF0115e8BDE9e1eBC20DFd3f15
+ERC1155: 0xd293847a8165f88B7Df90D9918Af0dBe0283ee08
