@@ -158,3 +158,27 @@ form span {
     width: 100%;
     margin-top: 25px;
 }
+
+.input-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.transfer table {
+    margin-bottom: 40px;
+}
+
+.transfer td,
+.transfer th {
+    border: 1px solid #ddd;
+    padding: 8px;
+}
+
+.transfer tr:nth-child(even) {
+    background-color: #f2f2f2;
+}
+
+.transfer tr:hover {
+    background-color: #ddd;
+}
