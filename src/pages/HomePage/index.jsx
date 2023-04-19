@@ -2,21 +2,10 @@ import React, { useEffect, useState } from "react";
 import { ethers } from "ethers";
 import { Box, Button, TextField, Modal } from "@mui/material";
 
-import ERC721ABI from "../../ABI/ERC721.json";
-import ERC1155ABI from "../../ABI/ERC1155.json";
+import contractABI from "../../ABI/contract.json";
 
 const provider = new ethers.providers.JsonRpcProvider(
     "https://data-seed-prebsc-1-s1.binance.org:8545"
-);
-
-const erc721Address = "0x10425fF5c5d0AEbF0115e8BDE9e1eBC20DFd3f15";
-const erc1155Address = "0xd293847a8165f88B7Df90D9918Af0dBe0283ee08";
-
-const erc721Contract = new ethers.Contract(erc721Address, ERC721ABI, provider);
-const erc1155Contract = new ethers.Contract(
-    erc1155Address,
-    ERC1155ABI,
-    provider
 );
 
 const style = {
@@ -46,37 +35,20 @@ const HomePage = () => {
     const [listNFTs, setListNFTs] = useState([]);
     const [openModal, setOpenModal] = useState(false);
     const [formValues, setFormValues] = useState(initialFormValues);
+    const [isDisable, setIsDisable] = useState(false);
 
-    const checkAddressERC = (value) => {
-        // Validate if the address is associated with ERC721 tokens
-        erc721Contract
-            .balanceOf(value)
-            .then((balance) => {
-                if (balance.gt(0)) {
-                    console.log(`${value} owns at least one ERC721 token`);
-                } else {
-                    // Validate if the address is associated with ERC1155 tokens
-                    erc1155Contract
-                        .balanceOf(value)
-                        .then((balance) => {
-                            if (balance.gt(0)) {
-                                console.log(
-                                    `${value} owns at least one ERC1155 token`
-                                );
-                            } else {
-                                console.log(
-                                    `${value} does not own any tokens of these standards`
-                                );
-                            }
-                        })
-                        .catch((error) => {
-                            console.error(error);
-                        });
-                }
-            })
-            .catch((error) => {
-                console.error(error);
-            });
+    const checkAddressERC = async (value) => {
+        const contract = new ethers.Contract(value, contractABI, provider);
+        // Check if the contract is an ERC721 contract
+        const supportsErc721Interface = await contract.supportsInterface(
+            "0x80ac58cd"
+        );
+        if (supportsErc721Interface) setIsDisable(true);
+
+        const supportsErc1155Interface = await contract.supportsInterface(
+            "0xd9b67a26"
+        );
+        if (supportsErc1155Interface) setIsDisable(false);
     };
 
     const handleChangeFormValues = (event) => {
@@ -86,7 +58,7 @@ const HomePage = () => {
             [name]: value,
         }));
 
-        if (name === "address") {
+        if (name === "address" && isValidAddress(value)) {
             checkAddressERC(value);
         }
     };
@@ -100,6 +72,8 @@ const HomePage = () => {
         if (target.toLowerCase() === address.toLowerCase()) {
             setTargetError("Invalid wallet address");
         }
+
+        return isValidAddress;
     };
 
     const handleTargetChange = (e) => {
@@ -135,6 +109,7 @@ const HomePage = () => {
 
     const handleAdd = () => {
         setOpenModal(false);
+        setIsDisable(false);
     };
 
     useEffect(() => {
@@ -202,8 +177,6 @@ const HomePage = () => {
                         value={formValues.address}
                         name="address"
                         onChange={handleChangeFormValues}
-                        // error={!!targetError}
-                        // helperText={targetError}
                     />
                     <p className="signin-form-label">ID</p>
                     <TextField
@@ -214,6 +187,7 @@ const HomePage = () => {
                     />
                     <p className="signin-form-label">Quantity</p>
                     <TextField
+                        disabled={isDisable}
                         value={formValues.quantity}
                         name="quantity"
                         type="number"
