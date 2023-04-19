@@ -1,8 +1,7 @@
-import React from 'react'
-import { Link } from 'react-router-dom'
+import React from "react";
+import { Link } from "react-router-dom";
 
-import '../../App.css'
-import BackgroundImage from '../../assets/images/bg.png'
+import BackgroundImage from "../assets/images/bg.png";
 
 export default function LandingPage() {
     return (
@@ -14,7 +13,7 @@ export default function LandingPage() {
                 </Link>
             </div>
         </header>
-    )
+    );
 }
 
 const HeaderStyle = {
@@ -23,5 +22,5 @@ const HeaderStyle = {
     background: `url(${BackgroundImage})`,
     backgroundPosition: "center",
     backgroundRepeat: "no-repeat",
-    backgroundSize: "cover"
-}
+    backgroundSize: "cover",
+};
