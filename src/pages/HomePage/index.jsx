@@ -24,7 +24,7 @@ const style = {
     top: "40%",
     left: "50%",
     transform: "translate(-50%, -50%)",
-    width: 400,
+    width: 500,
     bgcolor: "background.paper",
     border: "1px solid #000",
     boxShadow: 20,
@@ -207,7 +207,6 @@ const HomePage = () => {
                     />
                     <p className="signin-form-label">ID</p>
                     <TextField
-                        fullWidth
                         value={formValues.id}
                         name="id"
                         type="number"
@@ -215,7 +214,6 @@ const HomePage = () => {
                     />
                     <p className="signin-form-label">Quantity</p>
                     <TextField
-                        fullWidth
                         value={formValues.quantity}
                         name="quantity"
                         type="number"
