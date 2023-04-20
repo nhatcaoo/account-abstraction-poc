@@ -8,15 +8,19 @@
         "@mui/icons-material": "^5.11.16",
         "@mui/material": "^5.12.1",
         "bcryptjs": "^2.4.3",
+        "crypto": "^1.0.1",
         "ethers": "^5.7.2",
         "firebase": "^9.19.1",
+        "hashlib": "^1.0.1",
         "react": "^16.8.6",
         "react-dom": "^16.8.6",
         "react-router-dom": "^5.0.1",
-        "react-scripts": "3.0.1"
+        "react-scripts": "4.0.1",
+        "soltypes": "^2.0.0",
+        "typescript": "^5.0.4"
     },
     "scripts": {
-        "start": "react-scripts --openssl-legacy-provider start",
+        "start": "react-scripts start",
         "build": "react-scripts build",
         "test": "react-scripts test",
         "eject": "react-scripts eject"
@@ -35,5 +39,6 @@
             "last 1 firefox version",
             "last 1 safari version"
         ]
-    }
+    },
+    "devDependencies": {}
 }

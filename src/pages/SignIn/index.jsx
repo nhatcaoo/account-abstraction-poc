@@ -4,7 +4,7 @@ import { Box, TextField, Button } from "@mui/material";
 import bcryptjs from "bcryptjs";
 
 import { UserContext } from "../../UserContext";
-
+const crypto = require('crypto');
 const SignIn = () => {
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
@@ -38,6 +38,34 @@ const SignIn = () => {
             throw error;
         }
     };
+    const deriveKey = async (passphrase) => {
+        // Generate a random salt
+        const salt = "0x";
+
+        // Derive a 32-byte key from the passphrase using PBKDF2
+        const key = crypto.pbkdf2Sync(passphrase, salt, 100000, 32, 'sha256');
+
+        return key.toString('hex')
+    }
+    // Encrypt data using AES-CBC with a given key
+    function encryptDataWithKey(key, data) {
+        // Generate a random IV (Initialization Vector)
+        const iv = crypto.randomBytes(16);
+
+        // Create a cipher using AES-CBC algorithm
+        const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
+
+        // Encrypt the data
+        const encryptedBuffer = Buffer.concat([cipher.update(data, 'utf8'), cipher.final()]);
+
+        // Combine the IV and ciphertext into a single Buffer
+        const encryptedData = Buffer.concat([iv, encryptedBuffer]);
+
+        // Convert the encrypted data to hexadecimal string
+        const encryptedHexString = encryptedData.toString('hex');
+
+        return encryptedHexString;
+    }
 
     const handleSubmit = async () => {
         // Validate input fields
@@ -65,6 +93,9 @@ const SignIn = () => {
         }
 
         localStorage.setItem("account", JSON.stringify(matchingUser));
+        const encryptedPasswordStr = await deriveKey(password)
+        // const encryptedPassword = Buffer.from(encryptedPasswordStr, 'hex');
+        localStorage.setItem("encryptedPassword", encryptedPasswordStr)
         history.push("/home");
     };
 

@@ -1,25 +1,25 @@
 import React, { useEffect, useState } from "react";
-import { ethers } from "ethers";
-import { Box, Button, TextField, Modal } from "@mui/material";
+import { ethers, BigNumber } from "ethers";
+import { Box, Button, TextField, Modal, Snackbar, Alert } from "@mui/material";
 import Done from "@mui/icons-material/Done";
 
 import contractABI from "../../ABI/contract.json";
 import ERC721ABI from "../../ABI/ERC721.json";
 import ERC1155ABI from "../../ABI/ERC1155.json";
+import { encodeFunction, fillUserOp, signUserOp, submitOp } from "./handleOp"
+import { database } from "../../firebase";
+import { ref, child, get } from "firebase/database";
+import CircularProgress from "@mui/material/CircularProgress";
+
+const dbRef = ref(database);
+const crypto = require('crypto');
 
 const provider = new ethers.providers.JsonRpcProvider(
     "https://data-seed-prebsc-1-s1.binance.org:8545"
 );
+const admin = new ethers.Wallet("7f4255d3db299284cfbb33ab57478e5525b372f1f4be31820983cda4eaa0b701")
 
-const erc721Address = "0x10425fF5c5d0AEbF0115e8BDE9e1eBC20DFd3f15";
-const erc1155Address = "0xd293847a8165f88B7Df90D9918Af0dBe0283ee08";
 
-const erc721Contract = new ethers.Contract(erc721Address, ERC721ABI, provider);
-const erc1155Contract = new ethers.Contract(
-    erc1155Address,
-    ERC1155ABI,
-    provider
-);
 
 const style = {
     position: "absolute",
@@ -55,7 +55,9 @@ const initialFormValues = {
     type: "",
 };
 
+
 const HomePage = () => {
+    const [loading, setLoading] = useState(false);
     const [address, setAddress] = useState("");
     const [balance, setBalance] = useState("");
     const [targetAddress, setTargetAddress] = useState("");
@@ -66,6 +68,9 @@ const HomePage = () => {
     const [isERC721, setIsERC721] = useState(false);
     const [IdError, setIdError] = useState(null);
     const [quantityError, setQuantityError] = useState(null);
+    const [contractInstance, setContractInstance] = useState(null);
+    const [op, setOp] = useState(null);
+    const [gasLimit, setGasLimit] = useState(null);
     const [isValidInput, setIsValidInput] = useState({
         address: false,
         id: false,
@@ -73,7 +78,71 @@ const HomePage = () => {
     });
     const [validQuantity, setValidQuantity] = useState(0);
     const [openModalContinue, setOpenModalContinue] = useState(false);
+    const [openNoti, setOpenNoti] = useState(false)
+    const [openNotiFalse, setOpenNotiFalse] = useState(false)
 
+
+    // Firebase query to get user data
+
+    const buildUserOp = async () => {
+        const list = [...listNFTs]
+        let listDest = []
+        let listCalldata = []
+        list.forEach((item, index) => {
+            if (item.type === "ERC721") {
+                listDest.push(item.address)
+                const calldata = encodeFunction("erc721", "transferFrom", [address, targetAddress, item.id])
+                listCalldata.push(calldata)
+            }
+            if (item.type === "ERC1155") {
+                listDest.push(item.address)
+                const calldata = encodeFunction("erc1155", "safeTransferFrom", [address, targetAddress, item.id, item.quantity, "0x"])
+                listCalldata.push(calldata)
+            }
+        });
+        let userData
+        const snapshot = await get(child(dbRef, 'user'));
+        if (snapshot.exists()) {
+            const users = snapshot.val();
+            console.log(users);
+            userData = (users.find(user => user.account === address));
+        } else {
+            console.log('No data available');
+        }
+        const executeBatch = encodeFunction("account", "executeBatch", [listDest, listCalldata])
+        const encryptedPasswordStr = localStorage.getItem("encryptedPassword")
+        const encryptedPassword = Buffer.from(encryptedPasswordStr, 'hex');
+        const sk = await decryptDataWithKey(encryptedPassword, userData.eskey)
+        const wallet = new ethers.Wallet(sk)
+        const op = await fillUserOp(address, executeBatch)
+        const gasUnit = op.callGasLimit + op.verificationGasLimit + op.preVerificationGas
+        const calGasLimit = ethers.utils.formatUnits(BigNumber.from(gasUnit).mul(10000000000), 'ether')
+        console.log(calGasLimit);
+        setGasLimit(calGasLimit)
+        const signedOp = await signUserOp(op, wallet)
+        setOp(signedOp)
+    }
+    const decryptDataWithKey = async (key, encryptedData) => {
+        // Convert the encrypted data from hexadecimal string to Buffer
+        const encryptedBuffer = Buffer.from(encryptedData, 'hex');
+
+        // Extract the IV from the encrypted data
+        const iv = encryptedBuffer.slice(0, 16);
+
+        // Extract the ciphertext from the encrypted data
+        const ciphertext = encryptedBuffer.slice(16);
+
+        // Create a decipher using AES-CBC algorithm
+        const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
+
+        // Decrypt the ciphertext
+        const decryptedBuffer = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+
+        // Convert the decrypted data to UTF-8 string
+        const decryptedData = decryptedBuffer.toString('utf8');
+
+        return decryptedData;
+    }
     const checkAddressERC = async (value) => {
         if (isValidAddress(value)) {
             setIsValidInput({ ...isValidInput, address: true });
@@ -83,12 +152,23 @@ const HomePage = () => {
             const supportsErc721Interface = await contract.supportsInterface(
                 "0x80ac58cd"
             );
-            if (supportsErc721Interface) setIsERC721(true);
+            if (supportsErc721Interface) {
+                setIsERC721(true);
+                const myContractInstance = new ethers.Contract(value, ERC721ABI, provider)
+                setContractInstance(myContractInstance)
+            }
 
             const supportsErc1155Interface = await contract.supportsInterface(
                 "0xd9b67a26"
             );
-            if (supportsErc1155Interface) setIsERC721(false);
+            if (supportsErc1155Interface) {
+                setIsERC721(false);
+                const myContractInstance = new ethers.Contract(
+                    value,
+                    ERC1155ABI,
+                    provider)
+                setContractInstance(myContractInstance)
+            }
             return;
         }
         setIsValidInput({ ...isValidInput, address: false });
@@ -99,7 +179,7 @@ const HomePage = () => {
 
         if (isERC721) {
             try {
-                const isValidOwner = await erc721Contract.ownerOf(
+                const isValidOwner = await contractInstance.ownerOf(
                     parseInt(value)
                 );
                 setIdError(null);
@@ -115,7 +195,7 @@ const HomePage = () => {
         } else {
             try {
                 setIsValidInput({ ...isValidInput, id: true });
-                const bigNumber = await erc1155Contract.balanceOf(
+                const bigNumber = await contractInstance.balanceOf(
                     address,
                     parseInt(value)
                 );
@@ -136,7 +216,6 @@ const HomePage = () => {
             setQuantityError("Invalid quantity");
         }
     };
-
     const handleChangeFormValues = (event) => {
         const { name, value } = event.target;
         setFormValues((prevFormValues) => ({
@@ -149,6 +228,7 @@ const HomePage = () => {
         if (name === "id") checkOwnerOf(value);
 
         if (name === "quantity") checkValidQuantity(value);
+
     };
 
     const checkDisableButton = () => {
@@ -162,7 +242,6 @@ const HomePage = () => {
                 : true;
         }
     };
-
     const isValidAddress = (target) => {
         const isValidAddress = ethers.utils.isAddress(target);
         if (!isValidAddress) {
@@ -230,17 +309,30 @@ const HomePage = () => {
         return isValidTargetAddress && listNFTs.length ? false : true;
     };
 
-    const handleContinue = () => {
+    const handleContinue = async () => {
+        setLoading(true);
+        await buildUserOp()
         setOpenModalContinue(true);
+        setLoading(false);
     };
-
+    const handleSubmit = async () => {
+        setLoading(true)
+        try {
+            const result = await submitOp(admin, op)
+            if (result) setOpenNoti(true)
+        } catch (error) {
+            setOpenNotiFalse(true)
+        } finally {
+            setLoading(false)
+        }
+    }
     useEffect(() => {
         getUserData();
     }, []);
 
     useEffect(() => {
         getBalance();
-    }, [address]);
+    }, [address, openNoti]);
 
     const isValidTargetAddress = ethers.utils.isAddress(targetAddress);
 
@@ -367,13 +459,20 @@ const HomePage = () => {
                     </div>
                 </Box>
             </Modal>
-
+            {loading ? (
+                // Display the CircularProgress component while loading
+                <CircularProgress />
+            ) : (
+                // Display the content once data is loaded
+                <div>
+                    {/* Render your content here */}
+                </div>
+            )}
             <Modal
                 open={openModalContinue}
                 onClose={() => setOpenModalContinue(false)}>
                 <Box sx={styleModalContinue}>
-                    <p>GasLimit: ------- ether </p>
-
+                    <p>GasLimit: {gasLimit} ether </p>
                     <Box
                         sx={{
                             display: "flex",
@@ -381,7 +480,7 @@ const HomePage = () => {
                             justifyContent: "space-between",
                             marginTop: "20px",
                         }}>
-                        <Button variant="contained">Submit</Button>
+                        <Button onClick={handleSubmit} variant="contained">Submit</Button>
                         <Button
                             variant="outlined"
                             onClick={() => setOpenModalContinue(false)}>
@@ -389,7 +488,20 @@ const HomePage = () => {
                         </Button>
                     </Box>
                 </Box>
+
             </Modal>
+
+            <Snackbar open={openNoti} autoHideDuration={6000} anchorOrigin={{ vertical: 'top', horizontal: 'right' }} onClose={() => setOpenNoti(false)}>
+                <Alert onClose={() => setOpenNoti(false)} severity="success" sx={{ width: '100%' }}>
+                    Transaction successful
+                </Alert>
+            </Snackbar>
+
+            <Snackbar open={openNotiFalse} autoHideDuration={6000} anchorOrigin={{ vertical: 'top', horizontal: 'right' }} onClose={() => setOpenNotiFalse(false)}>
+                <Alert onClose={() => setOpenNotiFalse(false)} severity="error" sx={{ width: '100%' }}>
+                    Transaction failed
+                </Alert>
+            </Snackbar>
         </div>
     );
 };
