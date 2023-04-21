@@ -1,17 +1,19 @@
-import React, { useState, useContext } from "react";
+import React, { useState } from "react";
 import { Link, useHistory } from "react-router-dom";
 import { Box, TextField, Button } from "@mui/material";
 import bcryptjs from "bcryptjs";
+import { database } from "../../firebase";
+import { ref, child, get } from "firebase/database";
 
-import { UserContext } from "../../UserContext";
+const dbRef = ref(database);
 const crypto = require('crypto');
 const SignIn = () => {
+
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const [usernameError, setUsernameError] = useState(null);
     const [passwordError, setPasswordError] = useState(null);
 
-    const userData = useContext(UserContext);
     const history = useHistory();
 
     const handleUsernameChange = (e) => {
@@ -24,8 +26,18 @@ const SignIn = () => {
         setPasswordError(null);
     };
 
-    const handleCheckExistsAccount = () => {
-        return userData.find((user) => user.id === username);
+    const handleCheckExistsAccount = async () => {
+        let matchingUser
+        const snapshot = await get(child(dbRef, 'user'));
+        if (snapshot.exists()) {
+            const users = snapshot.val();
+            console.log(users);
+            matchingUser = (users.find(user => user.id === username));
+        } else {
+            console.log('No data available');
+        }
+        return matchingUser;
+
     };
 
     const verifyPassword = async (password, hash) => {
@@ -78,6 +90,7 @@ const SignIn = () => {
             return;
         }
         const matchingUser = await handleCheckExistsAccount();
+        console.log(matchingUser);
         if (!matchingUser) {
             setUsernameError("Account does not exist");
             return;
@@ -96,10 +109,11 @@ const SignIn = () => {
         const encryptedPasswordStr = await deriveKey(password)
         // const encryptedPassword = Buffer.from(encryptedPasswordStr, 'hex');
         localStorage.setItem("encryptedPassword", encryptedPasswordStr)
-        history.push("/home");
+        history.push("/home", { isLogin: true });
     };
 
     return (
+
         <div className="signin text-center m-5-auto">
             <h2>Sign in to us</h2>
             <Box
@@ -150,6 +164,7 @@ const SignIn = () => {
                 </Button>
             </Box>
         </div>
+
     );
 };
 

@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import { ethers, BigNumber } from "ethers";
 import { Box, Button, TextField, Modal, Snackbar, Alert } from "@mui/material";
 import Done from "@mui/icons-material/Done";
-
 import contractABI from "../../ABI/contract.json";
 import ERC721ABI from "../../ABI/ERC721.json";
 import ERC1155ABI from "../../ABI/ERC1155.json";
@@ -10,10 +9,9 @@ import { encodeFunction, fillUserOp, signUserOp, submitOp } from "./handleOp"
 import { database } from "../../firebase";
 import { ref, child, get } from "firebase/database";
 import CircularProgress from "@mui/material/CircularProgress";
-
+import { useLocation, useHistory } from "react-router-dom";
 const dbRef = ref(database);
 const crypto = require('crypto');
-
 const provider = new ethers.providers.JsonRpcProvider(
     "https://data-seed-prebsc-1-s1.binance.org:8545"
 );
@@ -57,6 +55,14 @@ const initialFormValues = {
 
 
 const HomePage = () => {
+    const location = useLocation();
+    const history = useHistory();
+    const isLogin = location.state && location.state.isLogin;
+    if (!isLogin) {
+        console.log("no access");
+        history.push('/login')
+    }
+
     const [loading, setLoading] = useState(false);
     const [address, setAddress] = useState("");
     const [balance, setBalance] = useState("");
@@ -316,10 +322,13 @@ const HomePage = () => {
         setLoading(false);
     };
     const handleSubmit = async () => {
+        setOpenModalContinue(false)
         setLoading(true)
         try {
             const result = await submitOp(admin, op)
-            if (result) setOpenNoti(true)
+            if (result) {
+                setOpenNoti(true)
+            }
         } catch (error) {
             setOpenNotiFalse(true)
         } finally {
@@ -491,14 +500,14 @@ const HomePage = () => {
 
             </Modal>
 
-            <Snackbar open={openNoti} autoHideDuration={6000} anchorOrigin={{ vertical: 'top', horizontal: 'right' }} onClose={() => setOpenNoti(false)}>
-                <Alert onClose={() => setOpenNoti(false)} severity="success" sx={{ width: '100%' }}>
+            <Snackbar open={openNoti} autoHideDuration={2000} anchorOrigin={{ vertical: 'top', horizontal: 'center' }} onClose={() => setOpenNoti(false)}>
+                <Alert onClose={() => setOpenNoti(false)} severity="success" sx={{ width: '300%' }}>
                     Transaction successful
                 </Alert>
             </Snackbar>
 
-            <Snackbar open={openNotiFalse} autoHideDuration={6000} anchorOrigin={{ vertical: 'top', horizontal: 'right' }} onClose={() => setOpenNotiFalse(false)}>
-                <Alert onClose={() => setOpenNotiFalse(false)} severity="error" sx={{ width: '100%' }}>
+            <Snackbar open={openNotiFalse} autoHideDuration={2000} anchorOrigin={{ vertical: 'top', horizontal: 'center' }} onClose={() => setOpenNotiFalse(false)}>
+                <Alert onClose={() => setOpenNotiFalse(false)} severity="error" sx={{ width: '300%' }}>
                     Transaction failed
                 </Alert>
             </Snackbar>
