@@ -6,9 +6,8 @@ import { database } from "../../firebase";
 import { ref, child, get } from "firebase/database";
 
 const dbRef = ref(database);
-const crypto = require('crypto');
+const crypto = require("crypto");
 const SignIn = () => {
-
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const [usernameError, setUsernameError] = useState(null);
@@ -27,17 +26,16 @@ const SignIn = () => {
     };
 
     const handleCheckExistsAccount = async () => {
-        let matchingUser
-        const snapshot = await get(child(dbRef, 'user'));
+        let matchingUser;
+        const snapshot = await get(child(dbRef, "user"));
         if (snapshot.exists()) {
             const users = snapshot.val();
             console.log(users);
-            matchingUser = (users.find(user => user.id === username));
+            matchingUser = users.find((user) => user.id === username);
         } else {
-            console.log('No data available');
+            console.log("No data available");
         }
         return matchingUser;
-
     };
 
     const verifyPassword = async (password, hash) => {
@@ -55,29 +53,10 @@ const SignIn = () => {
         const salt = "0x";
 
         // Derive a 32-byte key from the passphrase using PBKDF2
-        const key = crypto.pbkdf2Sync(passphrase, salt, 100000, 32, 'sha256');
+        const key = crypto.pbkdf2Sync(passphrase, salt, 100000, 32, "sha256");
 
-        return key.toString('hex')
-    }
-    // Encrypt data using AES-CBC with a given key
-    function encryptDataWithKey(key, data) {
-        // Generate a random IV (Initialization Vector)
-        const iv = crypto.randomBytes(16);
-
-        // Create a cipher using AES-CBC algorithm
-        const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
-
-        // Encrypt the data
-        const encryptedBuffer = Buffer.concat([cipher.update(data, 'utf8'), cipher.final()]);
-
-        // Combine the IV and ciphertext into a single Buffer
-        const encryptedData = Buffer.concat([iv, encryptedBuffer]);
-
-        // Convert the encrypted data to hexadecimal string
-        const encryptedHexString = encryptedData.toString('hex');
-
-        return encryptedHexString;
-    }
+        return key.toString("hex");
+    };
 
     const handleSubmit = async () => {
         // Validate input fields
@@ -106,14 +85,13 @@ const SignIn = () => {
         }
 
         localStorage.setItem("account", JSON.stringify(matchingUser));
-        const encryptedPasswordStr = await deriveKey(password)
+        const encryptedPasswordStr = await deriveKey(password);
         // const encryptedPassword = Buffer.from(encryptedPasswordStr, 'hex');
-        localStorage.setItem("encryptedPassword", encryptedPasswordStr)
+        localStorage.setItem("encryptedPassword", encryptedPasswordStr);
         history.push("/home", { isLogin: true });
     };
 
     return (
-
         <div className="signin text-center m-5-auto">
             <h2>Sign in to us</h2>
             <Box
@@ -164,7 +142,6 @@ const SignIn = () => {
                 </Button>
             </Box>
         </div>
-
     );
 };
 
