@@ -118,6 +118,10 @@ const HomePage = () => {
                 listCalldata.push(calldata);
             }
         });
+        const executeBatch = encodeFunction("account", "executeBatch", [
+            listDest,
+            listCalldata,
+        ]);
         let userData;
         const snapshot = await get(child(dbRef, "user"));
         if (snapshot.exists()) {
@@ -127,11 +131,11 @@ const HomePage = () => {
         } else {
             console.log("No data available");
         }
-        const executeBatch = encodeFunction("account", "executeBatch", [
-            listDest,
-            listCalldata,
-        ]);
-        const encryptedPasswordStr = localStorage.getItem("encryptedPassword");
+
+        let encryptedPasswordStr = localStorage.getItem("encryptedPassword");
+        if (!encryptedPasswordStr || encryptedPasswordStr === "") {
+            encryptedPasswordStr = userData.encryptedPassword;
+        }
         const encryptedPassword = Buffer.from(encryptedPasswordStr, "hex");
         const sk = await decryptDataWithKey(encryptedPassword, userData.eskey);
         const wallet = new ethers.Wallet(sk);

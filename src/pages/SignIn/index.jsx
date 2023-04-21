@@ -86,6 +86,7 @@ const SignIn = () => {
 
         localStorage.setItem("account", JSON.stringify(matchingUser));
         const encryptedPasswordStr = await deriveKey(password);
+        console.log(encryptedPasswordStr)
         // const encryptedPassword = Buffer.from(encryptedPasswordStr, 'hex');
         localStorage.setItem("encryptedPassword", encryptedPasswordStr);
         history.push("/home", { isLogin: true });
