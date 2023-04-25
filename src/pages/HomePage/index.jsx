@@ -382,6 +382,7 @@ const HomePage = () => {
                             quantity
                         );
                         if (isValidQuantity) handleAddItem();
+                        else setLoadingProcess(false);
                     }
                 } else setLoadingProcess(false);
             }
