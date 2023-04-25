@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { ethers, BigNumber } from "ethers";
 import { Box, Button, TextField, Modal, Snackbar, Alert } from "@mui/material";
-import Done from "@mui/icons-material/Done";
+import LoadingButton from "@mui/lab/LoadingButton";
+
 import contractABI from "../../ABI/contract.json";
 import ERC721ABI from "../../ABI/ERC721.json";
 import ERC1155ABI from "../../ABI/ERC1155.json";
@@ -10,6 +11,7 @@ import { database } from "../../firebase";
 import { ref, child, get } from "firebase/database";
 import CircularProgress from "@mui/material/CircularProgress";
 import { useLocation, useHistory } from "react-router-dom";
+
 const dbRef = ref(database);
 const crypto = require("crypto");
 const provider = new ethers.providers.JsonRpcProvider(
@@ -53,15 +55,15 @@ const initialFormValues = {
     type: "",
 };
 
-const initialFormErrors = {
-    id: null,
-    quantity: null,
-};
-
-const initialFormValid = {
-    address: false,
-    id: false,
-    quantity: false,
+const initialFormError = {
+    address: {
+        status: false,
+        message: "",
+    },
+    quantity: {
+        status: false,
+        message: "",
+    },
 };
 
 const HomePage = () => {
@@ -82,15 +84,16 @@ const HomePage = () => {
     const [openModal, setOpenModal] = useState(false);
     const [formValues, setFormValues] = useState(initialFormValues);
     const [isERC721, setIsERC721] = useState(false);
-    const [formErrors, setFormErrors] = useState(initialFormErrors);
+    const [formError, setFormError] = useState(initialFormError);
+    const [idError, setIdError] = useState({ status: false, message: "" });
     const [contractInstance, setContractInstance] = useState(null);
     const [op, setOp] = useState(null);
     const [gasLimit, setGasLimit] = useState(null);
-    const [isValidInput, setIsValidInput] = useState(initialFormValid);
     const [validQuantity, setValidQuantity] = useState(0);
     const [openModalContinue, setOpenModalContinue] = useState(false);
     const [openNoti, setOpenNoti] = useState(false);
     const [openNotiFalse, setOpenNotiFalse] = useState(false);
+    const [loadingProcess, setLoadingProcess] = useState(false);
 
     const buildUserOp = async () => {
         const list = [...listNFTs];
@@ -126,7 +129,6 @@ const HomePage = () => {
         const snapshot = await get(child(dbRef, "user"));
         if (snapshot.exists()) {
             const users = snapshot.val();
-            console.log(users);
             userData = users.find((user) => user.account === address);
         } else {
             console.log("No data available");
@@ -146,7 +148,6 @@ const HomePage = () => {
             BigNumber.from(gasUnit).mul(10000000000),
             "ether"
         );
-        console.log(calGasLimit);
         setGasLimit(calGasLimit);
         const signedOp = await signUserOp(op, wallet);
         setOp(signedOp);
@@ -177,9 +178,8 @@ const HomePage = () => {
         return decryptedData;
     };
 
-    const checkAddressType = async (value) => {
-        setIsValidInput({ ...isValidInput, address: false });
-        const contract = new ethers.Contract(value, contractABI, provider);
+    const handleDisableQuantityField = async (address) => {
+        const contract = new ethers.Contract(address, contractABI, provider);
         const supportsErc721Interface = await contract.supportsInterface(
             "0x80ac58cd"
         );
@@ -190,76 +190,126 @@ const HomePage = () => {
         if (supportsErc721Interface) {
             setIsERC721(true);
             const myContractInstance = new ethers.Contract(
-                value,
+                address,
                 ERC721ABI,
                 provider
             );
             setContractInstance(myContractInstance);
-            setIsValidInput({ ...isValidInput, address: true });
         } else if (supportsErc1155Interface) {
             setIsERC721(false);
             const myContractInstance = new ethers.Contract(
-                value,
+                address,
                 ERC1155ABI,
                 provider
             );
             setContractInstance(myContractInstance);
-            setIsValidInput({ ...isValidInput, address: true });
+        }
+    };
+
+    const checkAddressType = async (value) => {
+        const isValid = isValidAddress(value);
+        if (!isValid) {
+            setFormError({
+                ...formError,
+                address: {
+                    status: true,
+                    message: "Incorrect wallet address",
+                },
+            });
+            return false;
+        }
+
+        const contract = new ethers.Contract(value, contractABI, provider);
+        try {
+            const supportsErc721Interface = await contract.supportsInterface(
+                "0x80ac58cd"
+            );
+            const supportsErc1155Interface = await contract.supportsInterface(
+                "0xd9b67a26"
+            );
+
+            if (supportsErc721Interface || supportsErc1155Interface) {
+                setFormError({
+                    ...formError,
+                    address: {
+                        status: false,
+                        message: "",
+                    },
+                    quantity: {
+                        status: false,
+                        message: "",
+                    },
+                });
+                return true;
+            }
+        } catch (error) {
+            setFormError({
+                ...formError,
+                address: {
+                    status: true,
+                    message: "The address must be ERC721 or ERC1155",
+                },
+            });
+            return false;
         }
     };
 
     const checkOwnerOf = async (value) => {
-        if (formValues.address === "") return;
-
         if (isERC721) {
-            try {
-                const isValidOwner = await contractInstance.ownerOf(
-                    parseInt(value)
-                );
-                setFormErrors({ ...formErrors, id: null });
-                setIsValidInput({ ...isValidInput, id: true });
-                if (isValidOwner !== address) {
-                    setFormErrors({
-                        ...formErrors,
-                        id: "Owner query for nonexistent token",
-                    });
-                    setIsValidInput({ ...isValidInput, id: false });
-                }
-            } catch (error) {
-                setFormErrors({
-                    ...formErrors,
-                    id: "Owner query for nonexistent token",
+            const isValidOwner = await contractInstance.ownerOf(
+                parseInt(value)
+            );
+            if (isValidOwner !== address) {
+                setIdError({
+                    status: true,
+                    message: "Owner query for nonexistent token",
                 });
-                setIsValidInput({ ...isValidInput, id: false });
+                return false;
             }
+            setIdError({ status: false, message: "" });
+            return true;
         } else {
             try {
-                setIsValidInput({ ...isValidInput, id: true });
                 const bigNumber = await contractInstance.balanceOf(
                     address,
                     parseInt(value)
                 );
                 const quantity = ethers.BigNumber.from(bigNumber._hex);
                 setValidQuantity(quantity.toNumber());
+                return true;
             } catch (error) {
-                console.log(error);
+                return false;
             }
         }
     };
 
     const checkValidQuantity = (quantity) => {
+        if (quantity === 0) {
+            setIdError({
+                status: true,
+                message: "ID is not existed",
+            });
+            return false;
+        }
+
         if (quantity > 0 && quantity <= validQuantity) {
-            setIsValidInput({ ...isValidInput, quantity: true });
-            setFormErrors({
-                ...formErrors,
-                quantity: null,
+            setFormError({
+                ...formError,
+                quantity: {
+                    status: false,
+                    message: "",
+                },
             });
+            return true;
         } else {
-            setIsValidInput({ ...isValidInput, quantity: false });
-            setFormErrors({
-                ...formErrors,
-                quantity: "Invalid quantity",
+            setFormError({
+                ...formError,
+                quantity: {
+                    status: true,
+                    message: "Invalid quantity",
+                },
             });
+            return false;
         }
     };
 
@@ -270,24 +320,15 @@ const HomePage = () => {
             [name]: value,
         }));
 
-        if (name === "address") checkAddressType(value);
-
-        if (name === "id") checkOwnerOf(value);
-
-        if (name === "quantity") checkValidQuantity(value);
-    };
-
-    const checkDisableButton = () => {
-        if (isERC721) {
-            return isValidInput.address && isValidInput.id ? false : true;
-        } else {
-            return isValidInput.address &&
-                isValidInput.id &&
-                isValidInput.quantity
-                ? false
-                : true;
+        if (name === "address") handleDisableQuantityField(value);
+        if (name === "quantity") {
+            setIdError({ status: false, message: "" });
         }
     };
+
+    const isDisableButton = !(
+        formValues.address !== "" && formValues.id !== ""
+    );
 
     const isValidAddress = (target) => {
         const isValid = ethers.utils.isAddress(target);
@@ -321,30 +362,48 @@ const HomePage = () => {
         setOpenModal(true);
     };
 
-    const handleCloseAddModal = () => {
+    const handleClose = () => {
         setOpenModal(false);
         setFormValues(initialFormValues);
-        setFormErrors(initialFormErrors);
-        setIsValidInput(initialFormValid);
+        setFormError(initialFormError);
     };
 
     const handleAdd = () => {
+        const { address, id, quantity } = formValues;
+        setLoadingProcess(true);
+
+        Promise.all([checkAddressType(address), checkOwnerOf(id)]).then(
+            async (values) => {
+                if (values[0] && values[1]) {
+                    if (isERC721) {
+                        handleAddItem();
+                    } else {
+                        const isValidQuantity = await checkValidQuantity(
+                            quantity
+                        );
+                        if (isValidQuantity) handleAddItem();
+                    }
+                } else setLoadingProcess(false);
+            }
+        );
+    };
+
+    const handleAddItem = () => {
+        const { address, id, quantity } = formValues;
+
         const list = [...listNFTs];
         list.push({
-            address: formValues.address,
-            id: formValues.id,
-            quantity: isERC721 ? formValues.quantity + 1 : formValues.quantity,
+            address: address,
+            id: id,
+            quantity: isERC721 ? quantity + 1 : quantity,
             type: isERC721 ? "ERC721" : "ERC1155",
         });
         setListNFTs(list);
         setOpenModal(false);
         setIsERC721(false);
         setFormValues(initialFormValues);
-        setIsValidInput({
-            address: false,
-            id: false,
-            quantity: false,
-        });
+        setFormError(initialFormError);
+        setLoadingProcess(false);
     };
 
     const checkDisableSubmit = () => {
@@ -357,6 +416,7 @@ const HomePage = () => {
         setOpenModalContinue(true);
         setLoading(false);
     };
+
     const handleSubmit = async () => {
         setOpenModalContinue(false);
         setLoading(true);
@@ -371,6 +431,7 @@ const HomePage = () => {
             setLoading(false);
         }
     };
+
     useEffect(() => {
         getUserData();
     }, []);
@@ -453,7 +514,7 @@ const HomePage = () => {
                 </Box>
             </Box>
 
-            <Modal open={openModal} onClose={handleCloseAddModal}>
+            <Modal open={openModal} onClose={handleClose}>
                 <Box sx={styleAddModal}>
                     <p className="signin-form-label">Address</p>
                     <div className="input-container">
@@ -463,8 +524,9 @@ const HomePage = () => {
                             value={formValues.address}
                             name="address"
                             onChange={handleChangeFormValues}
+                            error={formError.address.status}
+                            helperText={formError.address.message}
                         />
-                        {isValidInput.address && <Done color="success" />}
                     </div>
 
                     <p className="signin-form-label">ID</p>
@@ -472,12 +534,10 @@ const HomePage = () => {
                         <TextField
                             value={formValues.id}
                             name="id"
-                            type="number"
                             onChange={handleChangeFormValues}
-                            error={!!formErrors.id}
-                            helperText={formErrors.id}
+                            error={idError.status}
+                            helperText={idError.message}
                         />
-                        {isValidInput.id && <Done color="success" />}
                     </div>
 
                     <p className="signin-form-label">Quantity</p>
@@ -486,21 +546,20 @@ const HomePage = () => {
                             disabled={isERC721}
                             value={formValues.quantity}
                             name="quantity"
-                            type="number"
                             onChange={handleChangeFormValues}
-                            error={!!formErrors.quantity}
-                            helperText={formErrors.quantity}
+                            error={formError.quantity.status}
+                            helperText={formError.quantity.message}
                         />
-                        {isValidInput.quantity && <Done color="success" />}
                     </div>
 
                     <div className="modal-add-btn">
-                        <Button
+                        <LoadingButton
                             variant="contained"
-                            disabled={checkDisableButton()}
-                            onClick={handleAdd}>
-                            Add
-                        </Button>
+                            disabled={isDisableButton}
+                            onClick={handleAdd}
+                            loading={loadingProcess}>
+                            <span>Add</span>
+                        </LoadingButton>
                     </div>
                 </Box>
             </Modal>

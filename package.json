@@ -5,7 +5,7 @@
     "dependencies": {
         "@emotion/react": "^11.10.6",
         "@emotion/styled": "^11.10.6",
-        "@mui/icons-material": "^5.11.16",
+        "@mui/lab": "^5.0.0-alpha.127",
         "@mui/material": "^5.12.1",
         "bcryptjs": "^2.4.3",
         "crypto": "^1.0.1",
@@ -20,7 +20,7 @@
         "typescript": "^5.0.4"
     },
     "scripts": {
-        "start": "react-scripts start",
+        "start": "react-scripts --openssl-legacy-provider start",
         "build": "react-scripts build",
         "test": "react-scripts test",
         "eject": "react-scripts eject"
